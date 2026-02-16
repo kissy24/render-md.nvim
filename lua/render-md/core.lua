@@ -6,7 +6,7 @@ local function setup_highlights()
     local config = require("render-md").config
     local h = config.highlights
     
-    -- 各レベルごとのハイライトを確実に設定
+    -- ハイライトを確実に適用
     vim.api.nvim_set_hl(0, "RenderMDH1", { bg = h.h1.bg, fg = h.h1.fg, bold = true })
     vim.api.nvim_set_hl(0, "RenderMDH2", { bg = h.h2.bg, fg = h.h2.fg, bold = true })
     vim.api.nvim_set_hl(0, "RenderMDH3", { bg = h.h3.bg, fg = h.h3.fg, bold = true })
@@ -45,14 +45,12 @@ function M.render()
             local level = 0
             local marker_node = nil
             
-            -- 子ノードを走査してレベルを正確に取得
             for i = 0, node:child_count() - 1 do
                 local child = node:child(i)
                 local c_type = child:type()
                 if c_type:find("atx_h%d_marker") then
                     marker_node = child
-                    -- "atx_h1_marker" から "1" を抽出
-                    level = tonumber(c_type:match("h(%d)"))
+                    level = tonumber(c_type:match("%d"))
                     break
                 end
             end
@@ -61,7 +59,7 @@ function M.render()
                 local hl_group = "RenderMDH" .. level
                 local icon = config.icons["h" .. level] or config.icons.h1
                 
-                -- 行全体にそのレベルの背景色を適用
+                -- 行全体に背景色
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, 0, {
                     end_row = start_row,
                     end_col = end_col,
@@ -69,9 +67,10 @@ function M.render()
                     hl_eol = true,
                 })
 
-                -- # マーカーをアイコンに置換
+                -- マーカー範囲を正確に指定して隠し、アイコンを置く
                 local msr, msc, mer, mec = marker_node:range()
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, msr, msc, {
+                    end_col = mec,
                     virt_text = { { string.rep(" ", level - 1) .. icon, hl_group } },
                     virt_text_pos = "overlay",
                     conceal = "",
@@ -82,7 +81,8 @@ function M.render()
             for i = 0, node:child_count() - 1 do
                 local child = node:child(i)
                 local c_type = child:type()
-                if c_type == "-" or c_type == "*" or c_type:find("marker") then
+                -- マーカー（-, *, +）を特定
+                if c_type == "-" or c_type == "*" or c_type == "+" or c_type:find("marker") then
                     local csr, csc, cer, cec = child:range()
                     
                     local is_task = false
@@ -92,6 +92,7 @@ function M.render()
                         local tsr, tsc, ter, tec = next_child:range()
                         local icon = next_child:type():find("unchecked") and config.icons.unchecked or config.icons.checked
                         vim.api.nvim_buf_set_extmark(bufnr, ns_id, tsr, tsc, {
+                            end_col = tec,
                             virt_text = { { icon, "RenderMDCheckbox" } },
                             virt_text_pos = "overlay",
                             conceal = "",
@@ -99,8 +100,10 @@ function M.render()
                     end
 
                     if not is_task then
+                        -- マーカーの1文字だけを隠して、アイコンを置く
                         vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, {
-                            virt_text = { { "  " .. config.icons.bullet, "RenderMDBullet" } },
+                            end_col = cec,
+                            virt_text = { { " " .. config.icons.bullet, "RenderMDBullet" } },
                             virt_text_pos = "overlay",
                             conceal = "",
                         })
@@ -114,6 +117,7 @@ function M.render()
             if first_child and (first_child:type() == ">" or first_child:type():find("marker")) then
                 local qsr, qsc, qer, qec = first_child:range()
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, qsr, qsc, {
+                    end_col = qec,
                     virt_text = { { config.icons.quote, "RenderMDQuote" } },
                     virt_text_pos = "overlay",
                     conceal = "",
@@ -129,7 +133,7 @@ function M.render()
         end
     end
 
-    -- インライン装飾の記号隠蔽
+    -- インライン装飾
     local inline_parser = vim.treesitter.get_parser(bufnr, "markdown_inline")
     if inline_parser then
         local inline_tree = inline_parser:parse()[1]
