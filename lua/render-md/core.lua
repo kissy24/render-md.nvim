@@ -11,7 +11,8 @@ local function setup_highlights()
     vim.api.nvim_set_hl(0, "RenderMDH1", { fg = h.h1, bold = true })
     vim.api.nvim_set_hl(0, "RenderMDH2", { fg = h.h2, bold = true })
     vim.api.nvim_set_hl(0, "RenderMDH3", { fg = h.h3, bold = true })
-    vim.api.nvim_set_hl(0, "RenderMDDecoration", { fg = "#666666" }) -- 囲み記号の色
+    vim.api.nvim_set_hl(0, "RenderMDDecoration", { fg = "#666666" })
+    vim.api.nvim_set_hl(0, "RenderMDBullet", { fg = "#569cd6", bold = true })
 end
 
 function M.render()
@@ -26,75 +27,80 @@ function M.render()
     local tree = parser:parse()[1]
     local root = tree:root()
 
-    -- キャプチャ名に頼らず、すべての atx_heading を取得
+    -- エラーを避けるため、確実に存在するノードだけをクエリする
     local query = vim.treesitter.query.parse("markdown", [[
         (atx_heading) @heading
-        (list_item (list_marker_dash) @bullet)
-        (task_list_marker_unchecked) @unchecked
-        (task_list_marker_checked) @checked
+        (list_item) @item
     ]])
 
-    for _, node, _ in query:iter_captures(root, bufnr, 0, -1) do
-        local type = node:type()
+    for id, node, _ in query:iter_captures(root, bufnr, 0, -1) do
+        local capture_name = query.captures[id]
         local start_row, start_col, end_row, end_col = node:range()
 
-        if type == "atx_heading" then
-            -- 子ノードを走査してマーカーと内容を特定
+        if capture_name == "heading" then
+            local level = 0
             local marker_node = nil
             local inline_node = nil
-            local level = 0
 
+            -- 子ノードを走査して構造を把握
             for i = 0, node:child_count() - 1 do
                 local child = node:child(i)
-                local child_type = child:type()
-                if child_type:find("atx_h%d_marker") then
+                if child:type():find("atx_h%d_marker") then
                     marker_node = child
-                    level = tonumber(child_type:match("%d"))
-                elseif child_type == "inline" then
+                    level = tonumber(child:type():match("%d"))
+                elseif child:type() == "inline" then
                     inline_node = child
                 end
             end
 
             if marker_node and level > 0 then
-                local m_s_r, m_s_c, m_e_r, m_e_c = marker_node:range()
                 local hl_group = "RenderMDH" .. level
                 local sym = level == 1 and "===" or (level == 2 and "---" or "___")
-
-                -- 開始記号 (=== )
-                vim.api.nvim_buf_set_extmark(bufnr, ns_id, m_s_r, m_s_c, {
+                
+                -- マーカー (#) を開始記号 (=== ) で上書き
+                local msr, msc, mer, mec = marker_node:range()
+                vim.api.nvim_buf_set_extmark(bufnr, ns_id, msr, msc, {
                     virt_text = { { sym .. " ", "RenderMDDecoration" } },
                     virt_text_pos = "overlay",
                     conceal = "",
                 })
 
-                -- 終了記号 ( ===)
+                -- 内容の末尾に終了記号 ( ===) を追加
                 if inline_node then
-                    local i_s_r, i_s_c, i_e_r, i_e_c = inline_node:range()
-                    vim.api.nvim_buf_set_extmark(bufnr, ns_id, i_e_r, i_e_c, {
+                    local isr, isc, ier, iec = inline_node:range()
+                    vim.api.nvim_buf_set_extmark(bufnr, ns_id, ier, iec, {
                         virt_text = { { " " .. sym, "RenderMDDecoration" } },
                         virt_text_pos = "inline",
                     })
                 end
             end
 
-        elseif type == "list_marker_dash" then
-            vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, start_col, {
-                virt_text = { { "  • ", "RenderMDBullet" } },
-                virt_text_pos = "overlay",
-                conceal = "",
-            })
-        elseif type == "task_list_marker_unchecked" then
-            vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, start_col, {
-                virt_text = { { " ☐ ", "RenderMDCheckbox" } },
-                virt_text_pos = "overlay",
-                conceal = "",
-            })
-        elseif type == "task_list_marker_checked" then
-            vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, start_col, {
-                virt_text = { { " ☑ ", "RenderMDCheckbox" } },
-                virt_text_pos = "overlay",
-                conceal = "",
-            })
+        elseif capture_name == "item" then
+            -- リストアイテムの最初の文字（マーカー）を特定
+            for i = 0, node:child_count() - 1 do
+                local child = node:child(i)
+                local c_type = child:type()
+                -- パーサーによって '-' だったり 'list_marker' だったりするため柔軟に判定
+                if c_type == "-" or c_type == "*" or c_type:find("marker") then
+                    local csr, csc, cer, cec = child:range()
+                    
+                    -- チェックボックスかどうかの判定
+                    local is_checkbox = false
+                    local next_child = node:child(i + 1)
+                    if next_child and next_child:type():find("task_list_marker") then
+                        is_checkbox = true
+                    end
+
+                    if not is_checkbox then
+                        vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, {
+                            virt_text = { { "  • ", "RenderMDBullet" } },
+                            virt_text_pos = "overlay",
+                            conceal = "",
+                        })
+                    end
+                    break
+                end
+            end
         end
     end
 end
