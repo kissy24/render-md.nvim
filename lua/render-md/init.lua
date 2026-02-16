@@ -51,6 +51,7 @@ function M.enable()
         pattern = "*.md",
         callback = function()
             vim.opt_local.conceallevel = 2
+            vim.opt_local.concealcursor = "nc"
             require("render-md.core").render()
         end,
     })
@@ -61,6 +62,8 @@ function M.enable()
         pattern = "*.md",
         callback = function()
             if vim.api.nvim_get_mode().mode ~= "i" then
+                vim.opt_local.conceallevel = 2
+                vim.opt_local.concealcursor = "nc"
                 require("render-md.core").render()
             end
         end,
