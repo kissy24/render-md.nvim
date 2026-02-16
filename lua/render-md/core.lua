@@ -6,7 +6,6 @@ local function setup_highlights()
     local config = require("render-md").config
     local h = config.highlights
     
-    -- ハイライトを確実に適用
     vim.api.nvim_set_hl(0, "RenderMDH1", { bg = h.h1.bg, fg = h.h1.fg, bold = true })
     vim.api.nvim_set_hl(0, "RenderMDH2", { bg = h.h2.bg, fg = h.h2.fg, bold = true })
     vim.api.nvim_set_hl(0, "RenderMDH3", { bg = h.h3.bg, fg = h.h3.fg, bold = true })
@@ -44,20 +43,18 @@ function M.render()
         if capture_name == "heading" then
             local level = 0
             local marker_node = nil
-            
             for i = 0, node:child_count() - 1 do
                 local child = node:child(i)
-                local c_type = child:type()
-                if c_type:find("atx_h%d_marker") then
+                if child:type():find("atx_h%d_marker") then
                     marker_node = child
-                    level = tonumber(c_type:match("%d"))
+                    level = tonumber(child:type():match("%d"))
                     break
                 end
             end
 
             if marker_node and level > 0 then
                 local hl_group = "RenderMDH" .. level
-                local icon = config.icons["h" .. level] or config.icons.h1
+                local icon = config.icons["h" .. level]
                 
                 -- 行全体に背景色
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, 0, {
@@ -67,13 +64,13 @@ function M.render()
                     hl_eol = true,
                 })
 
-                -- マーカー範囲を正確に指定して隠し、アイコンを置く
+                -- マーカー (#) を conceal で消し、その手前に inline でアイコンを表示
                 local msr, msc, mer, mec = marker_node:range()
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, msr, msc, {
                     end_col = mec,
+                    conceal = "", -- マーカー自体を消す
                     virt_text = { { string.rep(" ", level - 1) .. icon, hl_group } },
-                    virt_text_pos = "overlay",
-                    conceal = "",
+                    virt_text_pos = "inline", -- 文字を潰さず、横に挿入する
                 })
             end
 
@@ -81,7 +78,6 @@ function M.render()
             for i = 0, node:child_count() - 1 do
                 local child = node:child(i)
                 local c_type = child:type()
-                -- マーカー（-, *, +）を特定
                 if c_type == "-" or c_type == "*" or c_type == "+" or c_type:find("marker") then
                     local csr, csc, cer, cec = child:range()
                     
@@ -89,23 +85,25 @@ function M.render()
                     local next_child = node:child(i + 1)
                     if next_child and next_child:type():find("task_list_marker") then
                         is_task = true
-                        local tsr, tsc, ter, tec = next_child:range()
                         local icon = next_child:type():find("unchecked") and config.icons.unchecked or config.icons.checked
+                        local tsr, tsc, ter, tec = next_child:range()
+                        
+                        -- 元のマーカーとチェックボックス記号を隠してアイコンを表示
+                        vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, { end_col = cec, conceal = "" })
                         vim.api.nvim_buf_set_extmark(bufnr, ns_id, tsr, tsc, {
                             end_col = tec,
-                            virt_text = { { icon, "RenderMDCheckbox" } },
-                            virt_text_pos = "overlay",
                             conceal = "",
+                            virt_text = { { icon, "RenderMDCheckbox" } },
+                            virt_text_pos = "inline",
                         })
                     end
 
                     if not is_task then
-                        -- マーカーの1文字だけを隠して、アイコンを置く
                         vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, {
                             end_col = cec,
-                            virt_text = { { " " .. config.icons.bullet, "RenderMDBullet" } },
-                            virt_text_pos = "overlay",
                             conceal = "",
+                            virt_text = { { " " .. config.icons.bullet, "RenderMDBullet" } },
+                            virt_text_pos = "inline",
                         })
                     end
                     break
@@ -118,9 +116,9 @@ function M.render()
                 local qsr, qsc, qer, qec = first_child:range()
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, qsr, qsc, {
                     end_col = qec,
-                    virt_text = { { config.icons.quote, "RenderMDQuote" } },
-                    virt_text_pos = "overlay",
                     conceal = "",
+                    virt_text = { { config.icons.quote, "RenderMDQuote" } },
+                    virt_text_pos = "inline",
                 })
             end
 
@@ -133,7 +131,7 @@ function M.render()
         end
     end
 
-    -- インライン装飾
+    -- インライン装飾（ここも overlay ではなく conceal ベースで安全に）
     local inline_parser = vim.treesitter.get_parser(bufnr, "markdown_inline")
     if inline_parser then
         local inline_tree = inline_parser:parse()[1]
@@ -146,11 +144,11 @@ function M.render()
         for id, node, _ in inline_query:iter_captures(inline_tree:root(), bufnr, 0, -1) do
             local name = inline_query.captures[id]
             local s_r, s_c, e_r, e_c = node:range()
-            local offset = (name == "strong" or name == "strike") and 2 or 1
             if name == "code_delim" then
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, s_r, s_c, { end_col = s_c + 1, conceal = "" })
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, e_r, e_c - 1, { end_col = e_c, conceal = "" })
             else
+                local offset = (name == "strong" or name == "strike") and 2 or 1
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, s_r, s_c, { end_col = s_c + offset, conceal = "" })
                 vim.api.nvim_buf_set_extmark(bufnr, ns_id, e_r, e_c - offset, { end_col = e_c, conceal = "" })
             end
