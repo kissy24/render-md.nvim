@@ -1,26 +1,26 @@
 # render-md.nvim
 
-Neovim 内で Markdown ファイルを Notion のようなスタイルでリアルタイムにレンダリングするプラグインです。プレビューウィンドウを別に開くことなく、編集中のバッファ上で直接リッチな装飾を実現します。
-
-![render-md-demo](https://user-images.githubusercontent.com/example/demo.png) *(画像はイメージです)*
+Neovim 内で Markdown ファイルを Notion のようなスタイルでリアルタイムにレンダリングするプラグインです。編集のしやすさと閲覧時の美しさを両立させることを目指しています。
 
 ## ✨ 特徴
 
-- **リアルタイム・レンダリング**: タイピングに合わせて即座に装飾が更新されます。
-- **Notionライクな装飾**:
-  - 見出し（H1, H2, H3）の背景色とアイコン付与。
+- **Notionライクなリッチな装飾**:
+  - 見出し（H1, H2, H3）の背景色とレベル別アイコン付与。
   - 箇条書きリストのドットをカスタムアイコン（•）に置換。
-  - チェックボックス（タスクリスト）のアイコン化（☐, ☑）。
+  - チェックボックス（タスクリスト）をインタラクティブなアイコン（☐, ☑）に置換。
   - 引用ブロック（Blockquote）のサイドバー表示。
-  - コードブロックの背景色変更と言語アイコンの表示。
-  - インライン装飾（太字、斜体、打ち消し線）の記号を隠蔽（Conceal）。
-- **Treesitter連携**: 高精度な構文解析に基づいた安定した表示。
+  - コードブロックの背景色変更。
+  - **モダンなテーブル表示**: パイプテーブルをクリーンなグリッドとヘッダー強調スタイルで表示。
+- **スマート・アンレンダリング (Smart Unrendering)**:
+  - **インサートモードに入ると自動的にバッファ全体の装飾を解除**し、生の Markdown テキストを表示。
+  - モードを抜けると即座にリッチな表示を復元。編集時の視認性と正確性を極限まで高めています。
+- **Treesitter 連携**: 高精度な構文解析に基づき、バッファを汚さず装飾（Extmarks）のみで描画。
 
 ## 📋 必要条件
 
 - Neovim 0.9.0 以上
 - `nvim-treesitter` (markdown および markdown_inline パーサー)
-- [Nerd Fonts](https://www.nerdfonts.com/) (アイコン表示に推奨)
+- [Nerd Fonts](https://www.nerdfonts.com/) (アイコン表示に必須)
 
 ## 📦 インストール
 
@@ -30,6 +30,7 @@ Neovim 内で Markdown ファイルを Notion のようなスタイルでリア�
 {
     "your-username/render-md.nvim",
     dependencies = { "nvim-treesitter/nvim-treesitter" },
+    ft = "markdown",
     config = function()
         require("render-md").setup({
             -- オプション設定（任意）
@@ -40,7 +41,7 @@ Neovim 内で Markdown ファイルを Notion のようなスタイルでリア�
 
 ## ⚙️ 設定
 
-`setup()` 関数にテーブルを渡すことで、ハイライト色やアイコンをカスタマイズできます。
+デフォルト設定は以下の通りです。`setup()` でカスタマイズ可能です。
 
 ```lua
 require("render-md").setup({
@@ -56,8 +57,8 @@ require("render-md").setup({
     },
     icons = {
         h1 = "󰉫 ",
-        h2 = "󰉫 ",
-        h3 = "󰉫 ",
+        h2 = "󰉬 ",
+        h3 = "󰉭 ",
         bullet = "• ",
         unchecked = "☐ ",
         checked = "☑ ",
@@ -70,17 +71,10 @@ require("render-md").setup({
 ## ⌨️ コマンド
 
 - `:RenderMDEnable` - レンダリングを有効にする
-- `:RenderMDDisable` - レンダリングを無効にする
-- `:RenderMDToggle` - レンダリングの有効/無効を切り替える
+- `:RenderMDDisable` - レンダリングを完全に無効にする
+- `:RenderMDToggle` - 有効/無効を切り替える
 
-## 🛠️ トラブルシューティング
+## 🤝 開発について
 
-もし装飾（記号の隠蔽など）が正しく表示されない場合は、以下の設定を確認してください：
-
-```vim
-" 手動で設定する場合
-set conceallevel=2
-set concealcursor=nc
-```
-
-このプラグインは、`setup()` 実行時にこれらを自動的に設定します。
+このプラグインは、ユーザーの編集体験を損なうことなく、Markdown をより美しく、構造的に表示することを目的に作成されました。
+不具合や改善の提案があれば、ぜひお知らせください。
