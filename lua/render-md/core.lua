@@ -7,14 +7,16 @@ local function setup_highlights()
     local config = require("render-md").config
     local h = config.highlights
     
-    vim.api.nvim_set_hl(0, "RenderMDH1", { bg = h.h1.bg, fg = h.h1.fg, bold = true })
-    vim.api.nvim_set_hl(0, "RenderMDH2", { bg = h.h2.bg, fg = h.h2.fg, bold = true })
-    vim.api.nvim_set_hl(0, "RenderMDH3", { bg = h.h3.bg, fg = h.h3.fg, bold = true })
-    vim.api.nvim_set_hl(0, "RenderMDBullet", { fg = h.bullet.fg, bold = true })
-    vim.api.nvim_set_hl(0, "RenderMDQuote", { fg = h.quote.fg, italic = true })
-    vim.api.nvim_set_hl(0, "RenderMDCode", { bg = h.code.bg })
+    -- より洗練されたデフォルトハイライト
+    vim.api.nvim_set_hl(0, "RenderMDH1", { fg = "#ffaf00", bold = true })
+    vim.api.nvim_set_hl(0, "RenderMDH2", { fg = "#00afff", bold = true })
+    vim.api.nvim_set_hl(0, "RenderMDH3", { fg = "#5fff00", bold = true })
+    vim.api.nvim_set_hl(0, "RenderMDBorder", { fg = "#444444" })
+    vim.api.nvim_set_hl(0, "RenderMDBullet", { fg = "#569cd6", bold = true })
+    vim.api.nvim_set_hl(0, "RenderMDQuote", { fg = "#6a9955", italic = true })
+    vim.api.nvim_set_hl(0, "RenderMDCode", { bg = "#1e1e1e" })
     vim.api.nvim_set_hl(0, "RenderMDCodeLang", { fg = "#dcdcaa", italic = true })
-    vim.api.nvim_set_hl(0, "RenderMDCheckbox", { fg = h.checkbox.fg })
+    vim.api.nvim_set_hl(0, "RenderMDCheckbox", { fg = "#ce9178" })
 end
 
 function M.render()
@@ -50,17 +52,34 @@ function M.render()
         local start_row, start_col, end_row, end_col = node:range()
 
         if name == "h1" or name == "h2" or name == "h3" then
-            local level = name:sub(2, 2)
+            local level = tonumber(name:sub(2, 2))
             local hl_group = "RenderMDH" .. level
+            
+            -- 見出しの装飾 (アイコン表示とマーカー隠蔽)
             vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, 0, {
-                end_row = start_row,
-                end_col = end_col,
-                hl_group = hl_group,
-                hl_eol = true,
-                virt_text = { { string.rep(" ", tonumber(level) - 1) .. config.icons["h" .. level], hl_group } },
+                virt_text = { { string.rep(" ", level - 1) .. config.icons["h" .. level], hl_group } },
                 virt_text_pos = "overlay",
                 conceal = "",
             })
+
+            -- H1 の下に境界線を表示
+            if level == 1 then
+                vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, 0, {
+                    virt_lines = {
+                        { { string.rep("━", vim.api.nvim_win_get_width(0)), "RenderMDBorder" } }
+                    },
+                    virt_lines_above = false,
+                })
+            end
+            
+            -- H2 の左側にボーダー
+            if level == 2 then
+                vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, 0, {
+                    virt_text = { { "▍ ", hl_group } },
+                    virt_text_pos = "inline",
+                })
+            end
+
         elseif name == "bullet" then
             vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_row, start_col, {
                 virt_text = { { "  " .. config.icons.bullet, "RenderMDBullet" } },
