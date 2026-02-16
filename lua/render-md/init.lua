@@ -35,19 +35,27 @@ function M.enable()
     M.config.enabled = true
     local group = vim.api.nvim_create_augroup("RenderMD", { clear = true })
 
-    -- Markdown設定の適用
-    vim.api.nvim_create_autocmd("FileType", {
+    -- インサートモード突入時：バッファ全体の装飾を消去
+    vim.api.nvim_create_autocmd("InsertEnter", {
         group = group,
-        pattern = "markdown",
+        pattern = "*.md",
         callback = function()
-            if vim.api.nvim_get_mode().mode ~= "i" then
-                vim.opt_local.conceallevel = 2
-                vim.opt_local.concealcursor = "nc"
-            end
-        end
+            require("render-md.core").clear()
+            vim.opt_local.conceallevel = 0
+        end,
     })
 
-    -- 通常の更新（モードが挿入モードでない場合のみ実行）
+    -- インサートモード脱出時：再描画
+    vim.api.nvim_create_autocmd("InsertLeave", {
+        group = group,
+        pattern = "*.md",
+        callback = function()
+            vim.opt_local.conceallevel = 2
+            require("render-md.core").render()
+        end,
+    })
+
+    -- 通常の更新（ノーマルモード時のみ）
     vim.api.nvim_create_autocmd({ "BufEnter", "TextChanged" }, {
         group = group,
         pattern = "*.md",
@@ -57,45 +65,23 @@ function M.enable()
             end
         end,
     })
-
-    -- インサートモード突入時：装飾をクリアして raw 表示にする
-    vim.api.nvim_create_autocmd("InsertEnter", {
-        group = group,
-        pattern = "*.md",
-        callback = function()
-            local bufnr = vim.api.nvim_get_current_buf()
-            local ns_id = vim.api.nvim_create_namespace("render-md")
-            vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
-            vim.opt_local.conceallevel = 0
-        end,
-    })
-
-    -- インサートモード脱出時：再描画する
-    vim.api.nvim_create_autocmd("InsertLeave", {
-        group = group,
-        pattern = "*.md",
-        callback = function()
-            vim.opt_local.conceallevel = 2
-            require("render-md.core").render()
-        end,
-    })
     
-    -- 初期レンダリング
-    if vim.bo.filetype == "markdown" and vim.api.nvim_get_mode().mode ~= "i" then
-        vim.opt_local.conceallevel = 2
-        vim.opt_local.concealcursor = "nc"
-        require("render-md.core").render()
+    -- 初期表示設定
+    if vim.bo.filetype == "markdown" then
+        if vim.api.nvim_get_mode().mode ~= "i" then
+            vim.opt_local.conceallevel = 2
+            vim.opt_local.concealcursor = "nc"
+            require("render-md.core").render()
+        else
+            vim.opt_local.conceallevel = 0
+        end
     end
 end
 
 function M.disable()
     M.config.enabled = false
     vim.api.nvim_clear_autocmds({ group = "RenderMD" })
-    
-    local bufnr = vim.api.nvim_get_current_buf()
-    local ns_id = vim.api.nvim_create_namespace("render-md")
-    vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
-    
+    require("render-md.core").clear()
     vim.opt_local.conceallevel = 0
 end
 
