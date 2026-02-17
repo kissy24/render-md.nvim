@@ -84,7 +84,9 @@ function M.render()
                 local c_type = child:type()
                 if c_type == "-" or c_type == "*" or c_type == "+" or c_type:find("marker") then
                     local csr, csc, cer, cec = child:range()
-                    
+                    local marker_text = vim.api.nvim_buf_get_text(bufnr, csr, csc, cer, cec, {})[1]
+                    local is_ordered = marker_text:match("^%s*%d+[%.%)]")
+
                     local is_task = false
                     local next_child = node:child(i + 1)
                     if next_child and next_child:type():find("task_list_marker") then
@@ -101,11 +103,18 @@ function M.render()
                     end
 
                     if not is_task then
-                        vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, csr, csc, {
-                            end_col = cec, conceal = "",
-                            virt_text = { { " " .. config.icons.bullet, "RenderMDBullet" } },
-                            virt_text_pos = "inline",
-                        })
+                        if is_ordered then
+                            vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, csr, csc, {
+                                end_col = cec,
+                                hl_group = "RenderMDBullet",
+                            })
+                        else
+                            vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, csr, csc, {
+                                end_col = cec, conceal = "",
+                                virt_text = { { " " .. config.icons.bullet, "RenderMDBullet" } },
+                                virt_text_pos = "inline",
+                            })
+                        end
                     end
                     break
                 end
