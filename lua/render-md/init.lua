@@ -51,7 +51,7 @@ function M.enable()
         pattern = "*.md",
         callback = function()
             vim.opt_local.conceallevel = 2
-            vim.opt_local.concealcursor = "nc"
+            vim.opt_local.concealcursor = ""
             require("render-md.core").render()
         end,
     })
@@ -63,7 +63,7 @@ function M.enable()
         callback = function()
             if vim.api.nvim_get_mode().mode ~= "i" then
                 vim.opt_local.conceallevel = 2
-                vim.opt_local.concealcursor = "nc"
+                vim.opt_local.concealcursor = ""
                 require("render-md.core").render()
             end
         end,
@@ -73,7 +73,7 @@ function M.enable()
     if vim.bo.filetype == "markdown" then
         if vim.api.nvim_get_mode().mode ~= "i" then
             vim.opt_local.conceallevel = 2
-            vim.opt_local.concealcursor = "nc"
+            vim.opt_local.concealcursor = ""
             require("render-md.core").render()
         else
             vim.opt_local.conceallevel = 0
