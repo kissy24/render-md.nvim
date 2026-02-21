@@ -229,14 +229,7 @@ end
 -- ブロッククエリ定義（将来 config 化も可能）
 -- ============================================================
 
-local BLOCK_QUERY = vim.treesitter.query.parse("markdown", [[
-    (atx_heading)       @heading
-    (list_item)         @item
-    (block_quote)       @quote
-    (fenced_code_block) @code
-    (pipe_table)        @table
-]])
-
+local BLOCK_QUERY = nil
 -- capture名 → ハンドラー のマッピング
 local CAPTURE_HANDLERS = {
     heading = handlers.heading,
@@ -259,6 +252,16 @@ function M.render()
     local bufnr = vim.api.nvim_get_current_buf()
     if vim.bo[bufnr].filetype ~= "markdown" then return end
     if vim.api.nvim_get_mode().mode == "i" then return end
+
+    if not BLOCK_QUERY then
+        BLOCK_QUERY = vim.treesitter.query.parse("markdown", [[
+            (atx_heading)       @heading
+            (list_item)         @item
+            (block_quote)       @quote
+            (fenced_code_block) @code
+            (pipe_table)        @table
+        ]])
+    end
 
     local config = require("render-md").config
     setup_highlights(config)
