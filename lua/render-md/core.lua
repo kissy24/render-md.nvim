@@ -186,7 +186,7 @@ function M.render()
             })
         end
         ::next_capture::
-
+    end
     -- インライン装飾の記号隠蔽
     local inline_parser = vim.treesitter.get_parser(bufnr, "markdown_inline")
     if inline_parser then
