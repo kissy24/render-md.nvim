@@ -42,6 +42,8 @@ function M.render()
         (pipe_table) @table
     ]])
 
+    local ordered_list_counters = {}
+
     for id, node, _ in query:iter_captures(root, bufnr, 0, -1) do
         local capture_name = query.captures[id]
         local start_row, start_col, end_row, end_col = node:range()
@@ -79,6 +81,10 @@ function M.render()
             end
 
         elseif capture_name == "item" then
+            local parent = node:parent()
+            if not parent then goto next_capture end
+            local parent_id = parent:id()
+
             for i = 0, node:child_count() - 1 do
                 local child = node:child(i)
                 local c_type = child:type()
@@ -104,9 +110,23 @@ function M.render()
 
                     if not is_task then
                         if is_ordered then
+                            local current_num
+                            if ordered_list_counters[parent_id] then
+                                ordered_list_counters[parent_id] = ordered_list_counters[parent_id] + 1
+                                current_num = ordered_list_counters[parent_id]
+                            else
+                                current_num = tonumber(marker_text:match("%d+"))
+                                ordered_list_counters[parent_id] = current_num
+                            end
+                            
+                            local marker_suffix = marker_text:match("[%.%)]") or "."
+                            local virt_text = tostring(current_num) .. marker_suffix
+
                             vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, csr, csc, {
                                 end_col = cec,
-                                hl_group = "RenderMDBullet",
+                                conceal = "",
+                                virt_text = { { virt_text, "RenderMDBullet" } },
+                                virt_text_pos = "inline",
                             })
                         else
                             vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, csr, csc, {
@@ -165,7 +185,7 @@ function M.render()
                 end_row = end_row, hl_group = "RenderMDCode", hl_eol = true,
             })
         end
-    end
+        ::next_capture::
 
     -- インライン装飾の記号隠蔽
     local inline_parser = vim.treesitter.get_parser(bufnr, "markdown_inline")

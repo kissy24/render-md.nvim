@@ -12,6 +12,15 @@ Welcome to **render-md.nvim**.
 2. Open a markdown file
 3. Enjoy the view!
 
+### Numbering test
+1. first
+1. second
+1. third
+
+8. eighth
+8. ninth
+8. tenth
+
 > This is a blockquote.
 > It should have a nice side bar.
 
