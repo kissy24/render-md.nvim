@@ -170,14 +170,16 @@ function M.render()
             end
 
         elseif capture_name == "quote" then
-            local first_child = node:child(0)
-            if first_child and (first_child:type() == ">" or first_child:type():find("marker")) then
-                local qsr, qsc, qer, qec = first_child:range()
-                vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, qsr, qsc, {
-                    end_col = qec, conceal = "",
-                    virt_text = { { config.icons.quote, "RenderMDQuote" } },
-                    virt_text_pos = "inline",
-                })
+            for i = 0, node:child_count() - 1 do
+                local child = node:child(i)
+                if child:type() == ">" or child:type():find("marker") then
+                    local qsr, qsc, qer, qec = child:range()
+                    vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, qsr, qsc, {
+                        end_col = qec, conceal = "",
+                        virt_text = { { config.icons.quote, "RenderMDQuote" } },
+                        virt_text_pos = "inline",
+                    })
+                end
             end
 
         elseif capture_name == "code" then
