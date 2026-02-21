@@ -37,7 +37,7 @@ function M.render()
     local query = vim.treesitter.query.parse("markdown", [[
         (atx_heading) @heading
         (list_item) @item
-        (block_quote_marker) @quote
+        (block_quote (block_quote_marker) @quote_marker)
         (fenced_code_block) @code
         (pipe_table) @table
     ]])
@@ -169,7 +169,7 @@ function M.render()
                 end
             end
 
-        elseif capture_name == "quote" then
+        elseif capture_name == "quote_marker" then
             local qsr, qsc, qer, qec = node:range()
             vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, qsr, qsc, {
                 end_col = qec, conceal = "",
