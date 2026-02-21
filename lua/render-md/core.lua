@@ -37,7 +37,7 @@ function M.render()
     local query = vim.treesitter.query.parse("markdown", [[
         (atx_heading) @heading
         (list_item) @item
-        (block_quote (block_quote_marker) @quote_marker)
+        (block_quote) @quote
         (fenced_code_block) @code
         (pipe_table) @table
     ]])
@@ -169,13 +169,25 @@ function M.render()
                 end
             end
 
-        elseif capture_name == "quote_marker" then
-            local qsr, qsc, qer, qec = node:range()
-            vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, qsr, qsc, {
-                end_col = qec, conceal = "",
-                virt_text = { { config.icons.quote, "RenderMDQuote" } },
-                virt_text_pos = "inline",
-            })
+        elseif capture_name == "quote" then
+            local function find_and_render_markers(n)
+                for i = 0, n:child_count() - 1 do
+                    local child = n:child(i)
+                    local c_type = child:type()
+
+                    if c_type == ">" or c_type == "block_quote_marker" then
+                        local qsr, qsc, qer, qec = child:range()
+                        vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, qsr, qsc, {
+                            end_col = qec, conceal = "",
+                            virt_text = { { config.icons.quote, "RenderMDQuote" } },
+                            virt_text_pos = "inline",
+                        })
+                    elseif c_type == "block_quote" or c_type == "paragraph" then
+                        find_and_render_markers(child)
+                    end
+                end
+            end
+            find_and_render_markers(node)
 
         elseif capture_name == "code" then
             vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, start_row, 0, {
