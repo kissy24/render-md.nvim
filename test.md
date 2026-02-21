@@ -23,8 +23,9 @@ Welcome to **render-md.nvim**.
 
 ### Quote test
 > quote 1
->> quote 2
->>> quote 3
+> quote 2
+>> quote 3
+>>> quote 4
 
 > This is a blockquote.
 > It should have a nice side bar.

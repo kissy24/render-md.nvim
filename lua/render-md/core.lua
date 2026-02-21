@@ -37,7 +37,7 @@ function M.render()
     local query = vim.treesitter.query.parse("markdown", [[
         (atx_heading) @heading
         (list_item) @item
-        (block_quote) @quote
+        (block_quote_marker) @quote
         (fenced_code_block) @code
         (pipe_table) @table
     ]])
@@ -170,17 +170,12 @@ function M.render()
             end
 
         elseif capture_name == "quote" then
-            for i = 0, node:child_count() - 1 do
-                local child = node:child(i)
-                if child:type() == ">" or child:type():find("marker") then
-                    local qsr, qsc, qer, qec = child:range()
-                    vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, qsr, qsc, {
-                        end_col = qec, conceal = "",
-                        virt_text = { { config.icons.quote, "RenderMDQuote" } },
-                        virt_text_pos = "inline",
-                    })
-                end
-            end
+            local qsr, qsc, qer, qec = node:range()
+            vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, qsr, qsc, {
+                end_col = qec, conceal = "",
+                virt_text = { { config.icons.quote, "RenderMDQuote" } },
+                virt_text_pos = "inline",
+            })
 
         elseif capture_name == "code" then
             vim.api.nvim_buf_set_extmark(bufnr, M.ns_id, start_row, 0, {
