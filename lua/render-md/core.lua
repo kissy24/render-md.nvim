@@ -70,53 +70,51 @@ function handlers.item(bufnr, ns_id, node, config, state)
         local child = node:child(i)
         local c_type = child:type()
         local is_marker = (c_type == "-" or c_type == "*" or c_type == "+" or c_type:find("marker"))
-        if not is_marker then goto continue end
+        if not is_marker then
+            local csr, csc, _, cec = child:range()
+            local marker_text = vim.api.nvim_buf_get_text(bufnr, csr, csc, csr, cec, {})[1]
 
-        local csr, csc, _, cec = child:range()
-        local marker_text = vim.api.nvim_buf_get_text(bufnr, csr, csc, csr, cec, {})[1]
+            -- タスクリストチェック
+            local next_child = node:child(i + 1)
+            if next_child and next_child:type():find("task_list_marker") then
+                local icon = next_child:type():find("unchecked") and config.icons.unchecked or config.icons.checked
+                local tsr, tsc, _, tec = next_child:range()
+                vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, { end_col = cec, conceal = "" })
+                vim.api.nvim_buf_set_extmark(bufnr, ns_id, tsr, tsc, {
+                    end_col = tec,
+                    conceal = "",
+                    virt_text = { { icon, "RenderMDCheckbox" } },
+                    virt_text_pos = "inline",
+                })
+                break
+            end
 
-        -- タスクリストチェック
-        local next_child = node:child(i + 1)
-        if next_child and next_child:type():find("task_list_marker") then
-            local icon = next_child:type():find("unchecked") and config.icons.unchecked or config.icons.checked
-            local tsr, tsc, _, tec = next_child:range()
-            vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, { end_col = cec, conceal = "" })
-            vim.api.nvim_buf_set_extmark(bufnr, ns_id, tsr, tsc, {
-                end_col = tec,
-                conceal = "",
-                virt_text = { { icon, "RenderMDCheckbox" } },
-                virt_text_pos = "inline",
-            })
+            -- 順序付きリスト
+            if marker_text:match("^%s*%d+[%.%)]") then
+                if state.ordered_list_counters[parent_id] then
+                    state.ordered_list_counters[parent_id] = state.ordered_list_counters[parent_id] + 1
+                else
+                    state.ordered_list_counters[parent_id] = tonumber(marker_text:match("%d+"))
+                end
+                local suffix = marker_text:match("[%.%)]") or "."
+                local virt_text = tostring(state.ordered_list_counters[parent_id]) .. suffix
+                vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, {
+                    end_col = cec,
+                    conceal = "",
+                    virt_text = { { virt_text, "RenderMDBullet" } },
+                    virt_text_pos = "inline",
+                })
+            else
+                -- 通常の箇条書き
+                vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, {
+                    end_col = cec,
+                    conceal = "",
+                    virt_text = { { " " .. config.icons.bullet, "RenderMDBullet" } },
+                    virt_text_pos = "inline",
+                })
+            end
             break
         end
-
-        -- 順序付きリスト
-        if marker_text:match("^%s*%d+[%.%)]") then
-            if state.ordered_list_counters[parent_id] then
-                state.ordered_list_counters[parent_id] = state.ordered_list_counters[parent_id] + 1
-            else
-                state.ordered_list_counters[parent_id] = tonumber(marker_text:match("%d+"))
-            end
-            local suffix = marker_text:match("[%.%)]") or "."
-            local virt_text = tostring(state.ordered_list_counters[parent_id]) .. suffix
-            vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, {
-                end_col = cec,
-                conceal = "",
-                virt_text = { { virt_text, "RenderMDBullet" } },
-                virt_text_pos = "inline",
-            })
-        else
-            -- 通常の箇条書き
-            vim.api.nvim_buf_set_extmark(bufnr, ns_id, csr, csc, {
-                end_col = cec,
-                conceal = "",
-                virt_text = { { " " .. config.icons.bullet, "RenderMDBullet" } },
-                virt_text_pos = "inline",
-            })
-        end
-        break
-
-        ::continue::
     end
 end
 
